@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>C5与Steam利润计算器</title>
+  <style>
+    *{box-sizing:border-box;font-family:system-ui,sans-serif;}
+    body{max-width:900px;margin:30px auto;padding:0 15px;}
+    .item{border:1px solid #ddd;padding:12px 15px;border-radius:8px;margin-bottom:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .item input{padding:8px;width:120px;border:1px solid #ccc;border-radius:6px;}
+    .btn{padding:10px 16px;background:#2563eb;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px;}
+    .btn-del{background:#ef4444;}
+    .result{margin-top:20px;}
+    .rank-item{background:#f3f4f6;padding:10px 14px;border-radius:6px;margin-bottom:8px;}
+    .rank-high{border-left:4px solid #22c55e;font-weight:500;}
+    .same-cost{margin-top:30px;padding-top:20px;border-top:2px solid #eee;}
+    .same-cost h3{color:#d97706;}
+  </style>
+</head>
+<body>
+  <h2>C5 & Steam 利润计算器（87%比例）</h2>
+  <p>Steam 实际收入 = 输入价格 × 0.87</p>
+
+  <div id="items"></div>
+
+  <button class="btn" onclick="addItem()">➕ 添加商品</button>
+  <button class="btn" onclick="calculate()">🧮 计算并排行</button>
+
+  <div class="result" id="result"></div>
+
+  <script>
+    let items = [];
+
+    function init() {
+      items = [{ id: Date.now() }];
+      render();
+    }
+
+    function render() {
+      const dom = document.getElementById('items');
+      dom.innerHTML = '';
+      items.forEach(it => {
+        dom.innerHTML += `
+          <div class="item" data-id="${it.id}">
+            <input placeholder="商品名" value="${it.name||''}" oninput="update(this,'name')">
+            <input placeholder="C5本金" type="number" value="${it.c5||''}" oninput="update(this,'c5')">
+            <input placeholder="Steam售价" type="number" value="${it.steam||''}" oninput="update(this,'steam')">
+            <button class="btn btn-del" onclick="del(${it.id})">删除</button>
+          </div>
+        `;
+      });
+    }
+
+    function update(el, key) {
+      const id = +el.closest('.item').dataset.id;
+      const item = items.find(i => i.id === id);
+      if (item) item[key] = el.value.trim();
+    }
+
+    function addItem() {
+      items.push({ id: Date.now() });
+      render();
+    }
+
+    function del(id) {
+      items = items.filter(i => i.id !== id);
+      render();
+    }
+
+    function calculate() {
+      const list = items.map(it => {
+        const name = it.name || '未命名';
+        const cost = parseFloat(it.c5) || 0;
+        const steam = parseFloat(it.steam) || 0;
+        const real = steam * 0.87;
+        const profit = real - cost;
+        const rate = cost > 0 ? (profit / cost * 100).toFixed(2) + '%' : '0%';
+        const perCostProfit = cost > 0 ? profit / cost : 0;
+        return { name, cost, steam, real, profit, rate, perCostProfit };
+      }).filter(i => i.cost > 0 && i.steam > 0);
+
+      list.sort((a, b) => b.profit - a.profit);
+
+      const res = document.getElementById('result');
+      if (list.length === 0) {
+        res.innerHTML = '<p>请输入有效价格</p>';
+        return;
+      }
+
+      let html = '<h3>总利润排行（从高到低）</h3>';
+      list.forEach((i, idx) => {
+        const cls = idx === 0 ? 'rank-item rank-high' : 'rank-item';
+        html += `
+          <div class="${cls}">
+            ${i.name}｜本金：${i.cost.toFixed(2)}
+            ｜Steam收入：${i.real.toFixed(2)}
+            ｜利润：${i.profit.toFixed(2)}
+            ｜利润率：${i.rate}
+          </div>
+        `;
+      });
+
+      const sameCostList = [...list].sort((a, b) => b.perCostProfit - a.perCostProfit);
+
+      html += `
+        <div class="same-cost">
+          <h3>相同本金下收益排行（效率排序）</h3>
+          <p>同样投入100元，谁赚得更多</p>
+      `;
+      sameCostList.forEach((i, idx) => {
+        const cls = idx === 0 ? 'rank-item rank-high' : 'rank-item';
+        html += `
+          <div class="${cls}">
+            ${i.name}｜每1元本金赚：${i.perCostProfit.toFixed(3)} 元
+            ｜相同成本下总收益：${(i.perCostProfit * 100).toFixed(2)} 元/每100元本金
+            ｜利润率：${i.rate}
+          </div>
+        `;
+      });
+      html += '</div>';
+
+      res.innerHTML = html;
+    }
+
+    init();
+  </script>
+</body>
+</html>
